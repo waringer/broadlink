@@ -22,10 +22,10 @@ import (
 
 // Device holds all info about an device
 type Device struct {
-	deviceType uint16
-	deviceMac  [6]byte
-	deviceName string
-	deviceAddr *net.UDPAddr
+	DeviceType uint16
+	DeviceMac  [6]byte
+	DeviceName string
+	DeviceAddr *net.UDPAddr
 	deviceID   uint32
 	deviceKey  []byte
 }
@@ -88,15 +88,15 @@ func Hello(timeout time.Duration, deviceIP net.IP) (devices []Device) {
 
 		if buf != nil {
 			dev := Device{
-				deviceType: binary.LittleEndian.Uint16(buf[0x34:]),
-				deviceName: string(buf[0x40:]),
+				DeviceType: binary.LittleEndian.Uint16(buf[0x34:]),
+				DeviceName: string(buf[0x40:]),
 				deviceID:   0,
 				deviceKey:  make([]byte, len(defaultKey)),
 			}
 
-			copy(dev.deviceMac[:], buf[0x3a:0x40])
+			copy(dev.DeviceMac[:], buf[0x3a:0x40])
 			copy(dev.deviceKey, defaultKey)
-			dev.deviceAddr = &net.UDPAddr{IP: net.IPv4(buf[0x39], buf[0x38], buf[0x37], buf[0x36]), Port: 80}
+			dev.DeviceAddr = &net.UDPAddr{IP: net.IPv4(buf[0x39], buf[0x38], buf[0x37], buf[0x36]), Port: 80}
 
 			devices = append(devices, dev)
 		}
@@ -155,7 +155,7 @@ func Join(ssid string, password string, securityMode byte, dev *Device) []byte {
 		updBroadcastAddr, _ := net.ResolveUDPAddr("udp4", broadcast)
 		udpServer.WriteTo(payload, updBroadcastAddr)
 	} else {
-		udpServer.WriteTo(payload, dev.deviceAddr)
+		udpServer.WriteTo(payload, dev.DeviceAddr)
 	}
 
 	response := wait4Response(0x15, DefaultTimeout)
@@ -308,10 +308,10 @@ func send(command uint16, dev *Device, payload []byte) {
 
 	buffer := make([]byte, 0x38)
 	copy(buffer[0:], []byte{0x5a, 0xa5, 0xaa, 0x55, 0x5a, 0xa5, 0xaa, 0x55, 0x00})
-	binary.LittleEndian.PutUint16(buffer[0x24:], dev.deviceType)
+	binary.LittleEndian.PutUint16(buffer[0x24:], dev.DeviceType)
 	binary.LittleEndian.PutUint16(buffer[0x26:], command)
 	binary.LittleEndian.PutUint16(buffer[0x28:], sendCount)
-	copy(buffer[0x2a:], dev.deviceMac[0:])
+	copy(buffer[0x2a:], dev.DeviceMac[0:])
 	binary.LittleEndian.PutUint32(buffer[0x30:], dev.deviceID)
 	if (payload != nil) && (len(payload) > 0) {
 		binary.LittleEndian.PutUint16(buffer[0x34:], makeChecksum(payload))
@@ -321,7 +321,7 @@ func send(command uint16, dev *Device, payload []byte) {
 
 	binary.LittleEndian.PutUint16(buffer[0x20:], makeChecksum(buffer))
 
-	udpServer.WriteToUDP(buffer, dev.deviceAddr)
+	udpServer.WriteToUDP(buffer, dev.DeviceAddr)
 }
 
 // *** Converter ***
