@@ -37,6 +37,8 @@ const (
 var (
 	// DefaultTimeout to use for waiting for response
 	DefaultTimeout = time.Duration(60)
+	// LogWarnings to true to see warnings in log
+	LogWarnings = false
 
 	defaultKey   = []byte{0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02}
 	deviceIv     = []byte{0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58}
@@ -130,7 +132,9 @@ func Command(cmd uint32, data []byte, dev *Device) []byte {
 		return decrypted[4:]
 	}
 
-	log.Println("error packet revieved")
+	if LogWarnings {
+		log.Println("error packet revieved")
+	}
 
 	return nil
 }
@@ -292,7 +296,9 @@ func wait4Response(expectedType uint16, timeout time.Duration) []byte {
 				return buf
 			}
 
-			log.Printf("got unexprected message type %x - waiting for %x \n", msgType, expectedType)
+			if LogWarnings {
+				log.Printf("got unexprected message type %x - waiting for %x \n", msgType, expectedType)
+			}
 			responses <- buf
 			if !time.Now().Before(startTime) {
 				return nil
