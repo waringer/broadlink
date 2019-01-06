@@ -133,7 +133,7 @@ func Command(cmd uint32, data []byte, dev *Device) []byte {
 	}
 
 	if LogWarnings {
-		log.Println("error packet revieved")
+		log.Println("error packet received")
 	}
 
 	return nil
@@ -297,7 +297,7 @@ func wait4Response(expectedType uint16, timeout time.Duration) []byte {
 			}
 
 			if LogWarnings {
-				log.Printf("got unexprected message type %x - waiting for %x \n", msgType, expectedType)
+				log.Printf("got unexpected message type %x - waiting for %x \n", msgType, expectedType)
 			}
 			responses <- buf
 			if !time.Now().Before(startTime) {

@@ -21,10 +21,15 @@ func main() {
 	cmdConvertPronto := flag.String("convertpronto", "", "convert code provided in Pronto format to Broadlink format")
 	cmdDiscover := flag.Bool("discover", false, "search for devices")
 	deviceIP := flag.String("ip", "", "ip of device")
-	cmdLearn := flag.Bool("learn", false, "set device in learing mode and wait up to 30 seconds for new learned code")
+	cmdLearn := flag.Bool("learn", false, "put device in learing mode and wait up to 30 seconds for new learned code")
 	cmdGetLearned := flag.Bool("learned", false, "get the last learned code from device in Broadlink format")
 	cmdSend := flag.String("send", "", "send code provided in Broadlink format")
 	cmdSendPronto := flag.String("sendpronto", "", "send code provided in Pronto format")
+
+	cmdSetup := flag.Bool("setup", false, "set device wlan settings - device needs to be in AP-Mode for this")
+	setupPassword := flag.String("setuppassword", "", "password of wlan for the device setup")
+	setupSecurity := flag.Uint("setupsecurity", 0, "type of wlan security for the device setup [0-none, 1-wep, 2-wpa1, 3-wpa2]")
+	setupSSID := flag.String("setupssid", "", "ssid of wlan for the device setup")
 	flag.Parse()
 
 	broadlinkrm.DefaultTimeout = 5
@@ -36,6 +41,10 @@ func main() {
 		irCommand []byte
 		err       error
 	)
+
+	if (*cmdLearn || (len(*cmdSend) != 0) || (len(*cmdSendPronto) != 0) || *cmdSetup || *cmdGetLearned) && !*cmdDiscover {
+		log.Fatalln("invalid options - discovery needed")
+	}
 
 	if len(*cmdSend) != 0 {
 		irCommand, err = hex.DecodeString(strings.Replace(*cmdSend, " ", "", -1))
@@ -51,6 +60,20 @@ func main() {
 		}
 
 		irCommand = broadlinkrm.ConvertPronto2Broadlink(irCommand)
+	}
+
+	if *cmdSetup {
+		if len(*setupSSID) == 0 {
+			log.Fatalln("No SSID provided")
+		}
+
+		if (*setupSecurity != 0) && (len(*setupPassword) == 0) {
+			log.Fatalln("No WLan Password provided")
+		}
+
+		if *setupSecurity > 3 {
+			log.Fatalln("Unsupported WLan security type")
+		}
 	}
 
 	if len(*cmdConvertBroadlink) != 0 {
@@ -136,6 +159,13 @@ func main() {
 			} else {
 				fmt.Printf("[%02v] code send \n", id)
 			}
+		}
+	}
+
+	if *cmdSetup {
+		for id, device := range dev {
+			response := broadlinkrm.Join(*setupSSID, *setupPassword, byte(*setupSecurity), &device)
+			fmt.Printf("[%02v] Device returned: [%x] \n", id, response)
 		}
 	}
 }
