@@ -13,6 +13,8 @@ import (
 	"gitlab.com/waringer/broadlink/broadlinkrm"
 )
 
+var logLevel = 1
+
 func main() {
 	cmdAuth := flag.Bool("a", true, "authenticate agaist device")
 	cmdConvertBroadlink := flag.String("convertbroadlink", "", "convert code provided in Broadlink format to Pronto format")
@@ -34,7 +36,15 @@ func main() {
 	flag.Parse()
 
 	broadlinkrm.DefaultTimeout = 5
-	broadlinkrm.LogWarnings = false
+	broadlinkrm.LogWarnings = *cmdVerbose
+
+	if *cmdVerbose {
+		logLevel++
+	}
+
+	if *cmdQuiet {
+		logLevel = 0
+	}
 
 	var (
 		ip        net.IP
@@ -77,9 +87,7 @@ func main() {
 		}
 	}
 
-	if !*cmdQuiet {
-		fmt.Println("Broadlink RM Toolbox")
-	}
+	printMessage(1, fmt.Sprintf("Broadlink RM Toolbox"))
 
 	if len(*cmdConvertBroadlink) != 0 {
 		broadlinkCode, errBroadlink := hex.DecodeString(strings.Replace(*cmdConvertBroadlink, " ", "", -1))
@@ -88,7 +96,7 @@ func main() {
 			log.Fatalln("Provided Broadlink IR code is invalid")
 		}
 
-		fmt.Printf("Converted IR code in Pronto format: %v \n", regexp.MustCompile("(?m)(.{4})").ReplaceAllString(hex.EncodeToString(broadlinkrm.ConvertBroadlink2Pronto(broadlinkCode)), "$1 "))
+		printMessage(0, fmt.Sprintf("Converted IR code in Pronto format: %v \n", regexp.MustCompile("(?m)(.{4})").ReplaceAllString(hex.EncodeToString(broadlinkrm.ConvertBroadlink2Pronto(broadlinkCode)), "$1 ")))
 	}
 
 	if len(*cmdConvertPronto) != 0 {
@@ -98,7 +106,7 @@ func main() {
 			log.Fatalln("Provided Pronto IR code is invalid")
 		}
 
-		fmt.Printf("Converted IR code in Broadlink format: %x \n", broadlinkrm.ConvertPronto2Broadlink(prontoCode))
+		printMessage(0, fmt.Sprintf("Converted IR code in Broadlink format: %x \n", broadlinkrm.ConvertPronto2Broadlink(prontoCode)))
 	}
 
 	if *deviceIP != "" {
@@ -112,25 +120,16 @@ func main() {
 			dev = broadlinkrm.Hello(0, ip)
 		}
 
-		if !*cmdQuiet {
-			fmt.Printf("Found %v device(s)\n", len(dev))
-		}
+		printMessage(1, fmt.Sprintf("Found %v device(s)\n", len(dev)))
 		for id, device := range dev {
-			if *cmdVerbose {
-				fmt.Printf("[%02v] Device type: %X \n", id, device.DeviceType)
-				fmt.Printf("[%02v] Device name: %v \n", id, device.DeviceName)
-				fmt.Printf("[%02v] Device MAC: [% x] \n", id, device.DeviceMac)
-			}
-
-			if !*cmdQuiet {
-				fmt.Printf("[%02v] Device IP: %v \n", id, device.DeviceAddr.IP)
-			}
+			printMessage(2, fmt.Sprintf("[%02v] Device type: %X \n", id, device.DeviceType))
+			printMessage(2, fmt.Sprintf("[%02v] Device name: %v \n", id, device.DeviceName))
+			printMessage(2, fmt.Sprintf("[%02v] Device MAC: [% x] \n", id, device.DeviceMac))
+			printMessage(1, fmt.Sprintf("[%02v] Device IP: %v \n", id, device.DeviceAddr.IP))
 
 			if *cmdAuth {
 				broadlinkrm.Auth(&dev[id])
-				if *cmdVerbose {
-					fmt.Printf("[%02v] Device authenticated \n", id)
-				}
+				printMessage(2, fmt.Sprintf("[%02v] Device authenticated \n", id))
 			}
 		}
 	}
@@ -138,7 +137,7 @@ func main() {
 	if *cmdLearn {
 		for id, device := range dev {
 			broadlinkrm.Command(3, nil, &device)
-			fmt.Printf("[%02v] Wait for learned code", id)
+			printMessage(0, fmt.Sprintf("[%02v] Wait for learned code", id))
 
 			var learnedCode []byte
 			startTime := time.Now().Add(30 * time.Second)
@@ -146,7 +145,7 @@ func main() {
 				learnedCode = broadlinkrm.Command(4, nil, &device)
 
 				if len(learnedCode) != 0 {
-					fmt.Printf("\n[%02v] Learned code: [%x] \n", id, learnedCode)
+					printMessage(0, fmt.Sprintf("\n[%02v] Learned code: [%x] \n", id, learnedCode))
 					break
 				}
 				fmt.Print(".")
@@ -154,13 +153,13 @@ func main() {
 			}
 
 			if learnedCode == nil {
-				fmt.Printf("\n[%02v] No code learned! \n", id)
+				printMessage(0, fmt.Sprintf("\n[%02v] No code learned! \n", id))
 			}
 		}
 	} else if *cmdGetLearned {
 		for id, device := range dev {
 			learnedCode := broadlinkrm.Command(4, nil, &device)
-			fmt.Printf("[%02v] Device last learned code: [%x] \n", id, learnedCode)
+			printMessage(0, fmt.Sprintf("[%02v] Device last learned code: [%x] \n", id, learnedCode))
 		}
 	}
 
@@ -169,11 +168,9 @@ func main() {
 			response := broadlinkrm.Command(2, irCommand, &device)
 
 			if response == nil {
-				fmt.Printf("[%02v] code send failed!\n", id)
+				printMessage(0, fmt.Sprintf("[%02v] code send failed!\n", id))
 			} else {
-				if !*cmdQuiet {
-					fmt.Printf("[%02v] code send \n", id)
-				}
+				printMessage(1, fmt.Sprintf("[%02v] code send \n", id))
 			}
 		}
 	}
@@ -181,9 +178,13 @@ func main() {
 	if *cmdSetup {
 		for id, device := range dev {
 			response := broadlinkrm.Join(*setupSSID, *setupPassword, byte(*setupSecurity), &device)
-			if !*cmdQuiet {
-				fmt.Printf("[%02v] Device returned: [%x] \n", id, response)
-			}
+			printMessage(1, fmt.Sprintf("[%02v] Device returned: [%x] \n", id, response))
 		}
+	}
+}
+
+func printMessage(level int, message string) {
+	if logLevel >= level {
+		fmt.Print(message)
 	}
 }
