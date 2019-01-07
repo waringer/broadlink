@@ -53,7 +53,7 @@ func main() {
 		err       error
 	)
 
-	if (*cmdLearn || (len(*cmdSend) != 0) || (len(*cmdSendPronto) != 0) || *cmdSetup || *cmdGetLearned) && !*cmdDiscover {
+	if (*cmdLearn || (len(*cmdSend) != 0) || (len(*cmdSendPronto) != 0) || *cmdGetLearned) && !*cmdDiscover {
 		log.Fatalln("invalid options - discovery needed")
 	}
 
@@ -176,10 +176,8 @@ func main() {
 	}
 
 	if *cmdSetup {
-		for id, device := range dev {
-			response := broadlinkrm.Join(*setupSSID, *setupPassword, byte(*setupSecurity), &device)
-			printMessage(1, fmt.Sprintf("[%02v] Device returned: [%x] \n", id, response))
-		}
+		response := broadlinkrm.Join(*setupSSID, *setupPassword, byte(*setupSecurity), ip)
+		printMessage(1, fmt.Sprintf("Device returned: [%x] \n", response))
 	}
 }
 

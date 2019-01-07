@@ -141,7 +141,7 @@ func Command(cmd uint32, data []byte, dev *Device) []byte {
 
 // Join a wireless network. Device needs to be in AP-Mode
 // securityModes are 0-none, 1-wep, 2-wpa1, 3-wpa2, 4-wpa1/2 CCMP, 6-wpa1/2 TKIP
-func Join(ssid string, password string, securityMode byte, dev *Device) []byte {
+func Join(ssid string, password string, securityMode byte, deviceIP net.IP) []byte {
 	payload := make([]byte, 0x88)
 
 	payload[0x26] = 0x14 // Command Join
@@ -155,11 +155,11 @@ func Join(ssid string, password string, securityMode byte, dev *Device) []byte {
 
 	binary.LittleEndian.PutUint16(payload[0x20:0x22], makeChecksum(payload))
 
-	if dev == nil {
+	if deviceIP == nil {
 		updBroadcastAddr, _ := net.ResolveUDPAddr("udp4", broadcast)
 		udpServer.WriteTo(payload, updBroadcastAddr)
 	} else {
-		udpServer.WriteTo(payload, dev.DeviceAddr)
+		udpServer.WriteTo(payload, &net.UDPAddr{IP: deviceIP, Port: 80})
 	}
 
 	response := wait4Response(0x15, DefaultTimeout)
