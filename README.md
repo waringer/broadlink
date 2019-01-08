@@ -28,47 +28,47 @@ The library is designed to work with Broadlink RM Mini3 or similar devices. It c
 
 ### Hello
 
-* In
-```timeout time.Duration```
+* In:
+```timeout time.Duration```,
 ```deviceIP net.IP```
 
-* Out
+* Out:
 ```chan Device```
 
-* Description
+* Description:
    Find devices and get info's about it.
 
 ### Auth
 
-* In
+* In:
 ```dev *Device```
 
-* Description
+* Description:
    Authenticate against an device. Updates the security info's of the device struct for further usage.
 
 ### Command
 
-* In
-```cmd uint32```
-```data []byte```
+* In:
+```cmd uint32```,
+```data []byte```,
 ```dev *Device```
 
-* Out
+* Out:
 ```[]byte```
 
-* Description
+* Description:
    Send a command to device.
 
 ### Join
 
-* In
-```ssid string```
-```password string```
-```securityMode byte```
+* In:
+```ssid string```,
+```password string```,
+```securityMode byte```,
 ```deviceIP net.IP```
 
-* Out
+* Out:
 ```[]byte```
 
-* Description
+* Description:
    Setup a device in AP-mode to use the specified wlan
