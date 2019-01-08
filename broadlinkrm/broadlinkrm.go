@@ -23,11 +23,16 @@ import (
 // Device holds all info about an device
 type Device struct {
 	DeviceType uint16
-	DeviceMac  [6]byte
+	deviceMac  [6]byte
 	DeviceName string
 	DeviceAddr *net.UDPAddr
 	deviceID   uint32
 	deviceKey  []byte
+}
+
+// DeviceMac gets the mac of the device
+func (dev Device) DeviceMac() []byte {
+	return reverseArray(dev.deviceMac[:])
 }
 
 const (
@@ -96,7 +101,7 @@ func Hello(timeout time.Duration, deviceIP net.IP) (devices []Device) {
 				deviceKey:  make([]byte, len(defaultKey)),
 			}
 
-			copy(dev.DeviceMac[:], buf[0x3a:0x40])
+			copy(dev.deviceMac[:], buf[0x3a:0x40])
 			copy(dev.deviceKey, defaultKey)
 			dev.DeviceAddr = &net.UDPAddr{IP: net.IPv4(buf[0x39], buf[0x38], buf[0x37], buf[0x36]), Port: 80}
 
@@ -139,7 +144,8 @@ func Command(cmd uint32, data []byte, dev *Device) []byte {
 	return nil
 }
 
-// Join a wireless network. Device needs to be in AP-Mode
+// Join a wireless network. Device needs to be in AP-Mode.
+// A device in AP-Mode do NOT respond to Hello requests!
 // securityModes are 0-none, 1-wep, 2-wpa1, 3-wpa2, 4-wpa1/2 CCMP, 6-wpa1/2 TKIP
 func Join(ssid string, password string, securityMode byte, deviceIP net.IP) []byte {
 	payload := make([]byte, 0x88)
@@ -164,6 +170,9 @@ func Join(ssid string, password string, securityMode byte, deviceIP net.IP) []by
 
 	response := wait4Response(0x15, DefaultTimeout)
 
+	// todo
+	// expected response 0000000000000000000000000000000000000000000000000000000000000000c4be0000000015000000000000000000
+	// check it
 	return response
 }
 
@@ -317,7 +326,7 @@ func send(command uint16, dev *Device, payload []byte) {
 	binary.LittleEndian.PutUint16(buffer[0x24:], dev.DeviceType)
 	binary.LittleEndian.PutUint16(buffer[0x26:], command)
 	binary.LittleEndian.PutUint16(buffer[0x28:], sendCount)
-	copy(buffer[0x2a:], dev.DeviceMac[0:])
+	copy(buffer[0x2a:], dev.deviceMac[0:])
 	binary.LittleEndian.PutUint32(buffer[0x30:], dev.deviceID)
 	if (payload != nil) && (len(payload) > 0) {
 		binary.LittleEndian.PutUint16(buffer[0x34:], makeChecksum(payload))

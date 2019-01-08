@@ -124,7 +124,7 @@ func main() {
 		for id, device := range dev {
 			printMessage(2, fmt.Sprintf("[%02v] Device type: %X \n", id, device.DeviceType))
 			printMessage(2, fmt.Sprintf("[%02v] Device name: %v \n", id, device.DeviceName))
-			printMessage(2, fmt.Sprintf("[%02v] Device MAC: [% x] \n", id, device.DeviceMac))
+			printMessage(2, fmt.Sprintf("[%02v] Device MAC: [% x] \n", id, device.DeviceMac()))
 			printMessage(1, fmt.Sprintf("[%02v] Device IP: %v \n", id, device.DeviceAddr.IP))
 
 			if *cmdAuth {
