@@ -87,7 +87,7 @@ func main() {
 		}
 	}
 
-	printMessage(1, fmt.Sprintf("Broadlink RM Toolbox"))
+	printMessage(1, fmt.Sprintf("Broadlink RM Toolbox\n"))
 
 	if len(*cmdConvertBroadlink) != 0 {
 		broadlinkCode, errBroadlink := hex.DecodeString(strings.Replace(*cmdConvertBroadlink, " ", "", -1))
@@ -114,24 +114,32 @@ func main() {
 	}
 
 	if *cmdDiscover {
+		var devC chan (broadlinkrm.Device)
+
 		if ip == nil {
-			dev = broadlinkrm.Hello(5, nil)
+			devC = broadlinkrm.Hello(5, nil)
 		} else {
-			dev = broadlinkrm.Hello(0, ip)
+			devC = broadlinkrm.Hello(0, ip)
 		}
 
-		printMessage(1, fmt.Sprintf("Found %v device(s)\n", len(dev)))
-		for id, device := range dev {
+		id := 0
+		for device := range devC {
+			id++
+
 			printMessage(2, fmt.Sprintf("[%02v] Device type: %X \n", id, device.DeviceType))
 			printMessage(2, fmt.Sprintf("[%02v] Device name: %v \n", id, device.DeviceName))
 			printMessage(2, fmt.Sprintf("[%02v] Device MAC: [% x] \n", id, device.DeviceMac()))
 			printMessage(1, fmt.Sprintf("[%02v] Device IP: %v \n", id, device.DeviceAddr.IP))
 
 			if *cmdAuth {
-				broadlinkrm.Auth(&dev[id])
+				broadlinkrm.Auth(&device)
 				printMessage(2, fmt.Sprintf("[%02v] Device authenticated \n", id))
 			}
+
+			dev = append(dev, device)
 		}
+
+		printMessage(1, fmt.Sprintf("Found %v device(s)\n", len(dev)))
 	}
 
 	if *cmdLearn {

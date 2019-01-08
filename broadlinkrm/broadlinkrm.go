@@ -45,22 +45,25 @@ var (
 	// LogWarnings to true to see warnings in log
 	LogWarnings = false
 
-	defaultKey   = []byte{0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02}
-	deviceIv     = []byte{0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58}
-	sendCount    = uint16(0)
-	udpServer, _ = net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
-	responses    chan ([]byte)
+	defaultKey       = []byte{0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02}
+	deviceIv         = []byte{0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58}
+	sendCount        = uint16(0)
+	udpServer, _     = net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
+	responses        chan ([]byte)
+	updBroadcastAddr *net.UDPAddr
 )
 
 func init() {
 	if responses == nil {
+		updBroadcastAddr, _ = net.ResolveUDPAddr("udp4", broadcast)
 		responses = make(chan []byte, 1000)
 		go udpListener()
 	}
 }
 
 // Hello is to find broadlink devices on the local network
-func Hello(timeout time.Duration, deviceIP net.IP) (devices []Device) {
+// Devices in AP-Mode do not respond to Hello messages
+func Hello(timeout time.Duration, deviceIP net.IP) (devices chan Device) {
 	payload := make([]byte, 0x30)
 
 	binary.LittleEndian.PutUint16(payload[0x0c:], uint16(time.Now().UTC().Year()))
@@ -76,11 +79,20 @@ func Hello(timeout time.Duration, deviceIP net.IP) (devices []Device) {
 	binary.LittleEndian.PutUint16(payload[0x20:], makeChecksum(payload))
 
 	if deviceIP == nil {
-		updBroadcastAddr, _ := net.ResolveUDPAddr("udp4", broadcast)
 		udpServer.WriteTo(payload, updBroadcastAddr)
 	} else {
 		udpServer.WriteTo(payload, &net.UDPAddr{IP: deviceIP, Port: 80})
 	}
+
+	devices = make(chan (Device), 100)
+
+	go asyncHelloResponse(timeout, devices)
+
+	return
+}
+
+func asyncHelloResponse(timeout time.Duration, devices chan Device) {
+	defer close(devices)
 
 	startTime := time.Now().Add(timeout * time.Second)
 	waitTimeout := timeout
@@ -90,7 +102,7 @@ func Hello(timeout time.Duration, deviceIP net.IP) (devices []Device) {
 		waitTimeout = DefaultTimeout
 	}
 
-	for time.Now().Before(startTime) {
+	for {
 		buf := wait4Response(0x07, waitTimeout)
 
 		if buf != nil {
@@ -104,16 +116,15 @@ func Hello(timeout time.Duration, deviceIP net.IP) (devices []Device) {
 			copy(dev.deviceMac[:], buf[0x3a:0x40])
 			copy(dev.deviceKey, defaultKey)
 			dev.DeviceAddr = &net.UDPAddr{IP: net.IPv4(buf[0x39], buf[0x38], buf[0x37], buf[0x36]), Port: 80}
-
-			devices = append(devices, dev)
+			devices <- dev
+		} else if !time.Now().Before(startTime) {
+			break
 		}
 
 		if timeout == 0 {
 			break
 		}
 	}
-
-	return devices
 }
 
 //Command (16 bytes message id 0x6a payload) cmd: 1 get - 2 set - 3 learn - 4 fetch last learned code
@@ -145,7 +156,7 @@ func Command(cmd uint32, data []byte, dev *Device) []byte {
 }
 
 // Join a wireless network. Device needs to be in AP-Mode.
-// A device in AP-Mode do NOT respond to Hello requests!
+// A device in AP-Mode do NOT respond to Hello requests.
 // securityModes are 0-none, 1-wep, 2-wpa1, 3-wpa2, 4-wpa1/2 CCMP, 6-wpa1/2 TKIP
 func Join(ssid string, password string, securityMode byte, deviceIP net.IP) []byte {
 	payload := make([]byte, 0x88)
@@ -162,7 +173,6 @@ func Join(ssid string, password string, securityMode byte, deviceIP net.IP) []by
 	binary.LittleEndian.PutUint16(payload[0x20:0x22], makeChecksum(payload))
 
 	if deviceIP == nil {
-		updBroadcastAddr, _ := net.ResolveUDPAddr("udp4", broadcast)
 		udpServer.WriteTo(payload, updBroadcastAddr)
 	} else {
 		udpServer.WriteTo(payload, &net.UDPAddr{IP: deviceIP, Port: 80})
@@ -305,9 +315,6 @@ func wait4Response(expectedType uint16, timeout time.Duration) []byte {
 				return buf
 			}
 
-			if LogWarnings {
-				log.Printf("got unexpected message type %x - waiting for %x \n", msgType, expectedType)
-			}
 			responses <- buf
 			if !time.Now().Before(startTime) {
 				return nil
