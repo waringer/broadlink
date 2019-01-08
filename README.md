@@ -2,13 +2,15 @@
 
 This library where created with work from the following pages:
 
-* https://blog.ipsumdomus.com/broadlink-smart-home-devices-complete-protocol-hack-bc0b4b397af1
-* https://github.com/mjg59/python-broadlink
-* https://community.home-assistant.io/t/configuration-of-broadlink-ir-device-and-getting-the-right-ir-codes/48391
+* <https://blog.ipsumdomus.com/broadlink-smart-home-devices-complete-protocol-hack-bc0b4b397af1>
+* <https://github.com/mjg59/python-broadlink>
+* <https://community.home-assistant.io/t/configuration-of-broadlink-ir-device-and-getting-the-right-ir-codes/48391>
 
 The library is designed to work with Broadlink RM Mini3 or similar devices. It can configure the WLan settings of the device and learn and send IR commands over the device.
 
 **In the root directory is a sample command line program "main.go" where you can see the usage of the library.**
+
+Link to documentation in [GoDoc](https://godoc.org/gitlab.com/waringer/broadlink/broadlinkrm)
 
 ## How to's
 

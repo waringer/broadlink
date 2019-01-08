@@ -96,7 +96,7 @@ func main() {
 			log.Fatalln("Provided Broadlink IR code is invalid")
 		}
 
-		printMessage(0, fmt.Sprintf("Converted IR code in Pronto format: %v \n", regexp.MustCompile("(?m)(.{4})").ReplaceAllString(hex.EncodeToString(broadlinkrm.ConvertBroadlink2Pronto(broadlinkCode)), "$1 ")))
+		printMessage(0, fmt.Sprintf("Converted IR code in Pronto format: %v \n", regexp.MustCompile("(?m)(.{4})").ReplaceAllString(hex.EncodeToString(broadlinkrm.ConvertBroadlink2Pronto(broadlinkCode, 0x6d)), "$1 ")))
 	}
 
 	if len(*cmdConvertPronto) != 0 {

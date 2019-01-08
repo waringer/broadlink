@@ -23,9 +23,9 @@ import (
 // Device holds all info about an device
 type Device struct {
 	DeviceType uint16
-	deviceMac  [6]byte
 	DeviceName string
 	DeviceAddr *net.UDPAddr
+	deviceMac  [6]byte
 	deviceID   uint32
 	deviceKey  []byte
 }
@@ -42,7 +42,7 @@ const (
 var (
 	// DefaultTimeout to use for waiting for response
 	DefaultTimeout = time.Duration(60)
-	// LogWarnings to true to see warnings in log
+	// LogWarnings - set to true to see warnings in log
 	LogWarnings = false
 
 	defaultKey       = []byte{0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02}
@@ -61,8 +61,12 @@ func init() {
 	}
 }
 
-// Hello is to find broadlink devices on the local network
-// Devices in AP-Mode do not respond to Hello messages
+// Hello - find broadlink devices on the local network and get base infos about the devices.
+// Devices in AP-Mode do not respond to Hello messages.
+//
+// timeout - in seconds, if set to 0 the function returns after the first device that answers
+// deviceIP - IP of an device to use, if nil a broadcast will be send to find all devices
+// The returned channel contains the parsed data of the devices that have answerd.
 func Hello(timeout time.Duration, deviceIP net.IP) (devices chan Device) {
 	payload := make([]byte, 0x30)
 
@@ -127,7 +131,12 @@ func asyncHelloResponse(timeout time.Duration, devices chan Device) {
 	}
 }
 
-//Command (16 bytes message id 0x6a payload) cmd: 1 get - 2 set - 3 learn - 4 fetch last learned code
+// Command - send a command with parameters to an device.
+//
+// cmd - command to send, knowen command's: 2 send, 3 learn, 4 fetch last learned code
+// data - parameters for command
+// dev - device structure returned from Hello where command is send to
+// Returned are the decrypted raw answer from the device
 func Command(cmd uint32, data []byte, dev *Device) []byte {
 	var payload []byte
 	if (data == nil) || (len(data) < 12) {
@@ -156,8 +165,12 @@ func Command(cmd uint32, data []byte, dev *Device) []byte {
 }
 
 // Join a wireless network. Device needs to be in AP-Mode.
-// A device in AP-Mode do NOT respond to Hello requests.
-// securityModes are 0-none, 1-wep, 2-wpa1, 3-wpa2, 4-wpa1/2 CCMP, 6-wpa1/2 TKIP
+//
+// ssid - name of the wireless network
+// password - password of the wireless network
+// securityModes - protection mode of the wireless network, possible knowen modes are: 0=none, 1=wep, 2=wpa1, 3=wpa2, 4=wpa1/2 CCMP, 6=wpa1/2 TKIP
+// deviceIP - IP of an device to use, if nil a broadcast will be send
+// Returned are the raw answer from the device.
 func Join(ssid string, password string, securityMode byte, deviceIP net.IP) []byte {
 	payload := make([]byte, 0x88)
 
@@ -186,10 +199,9 @@ func Join(ssid string, password string, securityMode byte, deviceIP net.IP) []by
 	return response
 }
 
-/*
-Auth provide broadlink device with your encryption public key to be used for your connection.
-As result, the device should provide device public key and this how you can security communicate.
-*/
+// Auth against an device for further usage.
+//
+// dev - device structure returned from Hello where authentication is send to
 func Auth(dev *Device) {
 	payload := make([]byte, 0x50)
 	payload[0x2d] = 0x01
@@ -358,9 +370,9 @@ func ConvertPronto2Broadlink(prontoByte []byte) []byte {
 }
 
 // ConvertBroadlink2Pronto converts broadlink codes to pronto code
-func ConvertBroadlink2Pronto(broadlinkByte []byte) []byte {
+func ConvertBroadlink2Pronto(broadlinkByte []byte, prontoIrFrequency uint16) []byte {
 	lircCode := broadlink2lirc(broadlinkByte)
-	prontoByte := lirc2pronto(lircCode, 0x6c)
+	prontoByte := lirc2pronto(lircCode, prontoIrFrequency)
 
 	return prontoByte
 }
