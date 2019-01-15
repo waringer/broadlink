@@ -13,77 +13,101 @@ import (
 	"gitlab.com/waringer/broadlink/broadlinkrm"
 )
 
+type cmdArguments struct {
+	cmdConvertBroadlink *string
+	cmdConvertPronto    *string
+	deviceIP            *string
+	cmdSend             *string
+	cmdSendPronto       *string
+	setupPassword       *string
+	setupSSID           *string
+
+	setupSecurity *uint
+
+	cmdAuth       *bool
+	cmdDiscover   *bool
+	cmdLearn      *bool
+	cmdGetLearned *bool
+	cmdQuiet      *bool
+	cmdSetup      *bool
+	cmdVerbose    *bool
+}
+
 var logLevel = 1
 
 func main() {
-	cmdAuth := flag.Bool("a", true, "authenticate agaist device")
-	cmdConvertBroadlink := flag.String("convertbroadlink", "", "convert code provided in Broadlink format to Pronto format")
-	cmdConvertPronto := flag.String("convertpronto", "", "convert code provided in Pronto format to Broadlink format")
-	cmdDiscover := flag.Bool("d", false, "discover - search for devices")
-	deviceIP := flag.String("ip", "", "ip of device")
-	cmdLearn := flag.Bool("learn", false, "put device in learing mode and wait up to 30 seconds for new learned code")
-	cmdGetLearned := flag.Bool("learned", false, "get the last learned code from device in Broadlink format")
-	cmdQuiet := flag.Bool("q", false, "quiet - only errors may showen")
-	cmdSend := flag.String("send", "", "send code provided in Broadlink format")
-	cmdSendPronto := flag.String("sendpronto", "", "send code provided in Pronto format")
-
-	cmdSetup := flag.Bool("setup", false, "set device wlan settings - device needs to be in AP-Mode for this")
-	setupPassword := flag.String("setuppassword", "", "password of wlan for the device setup")
-	setupSecurity := flag.Uint("setupsecurity", 0, "type of wlan security for the device setup [0-none, 1-wep, 2-wpa1, 3-wpa2]")
-	setupSSID := flag.String("setupssid", "", "ssid of wlan for the device setup")
-
-	cmdVerbose := flag.Bool("v", false, "verbose - show detailed messages")
-	flag.Parse()
+	args := getArguments()
+	checkArguments(args)
 
 	broadlinkrm.DefaultTimeout = 5
-	broadlinkrm.LogWarnings = *cmdVerbose
+	broadlinkrm.LogWarnings = *args.cmdVerbose
 
-	if *cmdVerbose {
+	if *args.cmdVerbose {
 		logLevel++
 	}
 
-	if *cmdQuiet {
+	if *args.cmdQuiet {
 		logLevel = 0
-	}
-
-	var ip net.IP
-
-	if (*cmdLearn || (len(*cmdSend) != 0) || (len(*cmdSendPronto) != 0) || *cmdGetLearned) && !*cmdDiscover {
-		log.Fatalln("invalid options - discovery needed")
-	}
-
-	if *cmdSetup {
-		if len(*setupSSID) == 0 {
-			log.Fatalln("No SSID provided")
-		}
-
-		if (*setupSecurity != 0) && (len(*setupPassword) == 0) {
-			log.Fatalln("No WLan Password provided")
-		}
-
-		if *setupSecurity > 3 {
-			log.Fatalln("Unsupported WLan security type")
-		}
 	}
 
 	printMessage(1, fmt.Sprintf("Broadlink RM Toolbox\n"))
 
-	convertBroadlink(*cmdConvertBroadlink)
-	convertPronto(*cmdConvertPronto)
+	convertBroadlink(*args.cmdConvertBroadlink)
+	convertPronto(*args.cmdConvertPronto)
 
-	if *deviceIP != "" {
-		ip = net.ParseIP(*deviceIP)
+	ip := net.ParseIP(*args.deviceIP)
+
+	if *args.cmdDiscover {
+		dev := discover(ip, *args.cmdAuth)
+		learn(*args.cmdLearn, *args.cmdGetLearned, dev)
+		send(buildIRcommand(*args.cmdSend, *args.cmdSendPronto), dev)
 	}
 
-	if *cmdDiscover {
-		dev := discover(ip, *cmdAuth)
-		learn(*cmdLearn, *cmdGetLearned, dev)
-		send(buildIRcommand(*cmdSend, *cmdSendPronto), dev)
-	}
-
-	if *cmdSetup {
-		response := broadlinkrm.Join(*setupSSID, *setupPassword, byte(*setupSecurity), ip)
+	if *args.cmdSetup {
+		response := broadlinkrm.Join(*args.setupSSID, *args.setupPassword, byte(*args.setupSecurity), ip)
 		printMessage(1, fmt.Sprintf("Device returned: [%x] \n", response))
+	}
+}
+
+func getArguments() (args cmdArguments) {
+	args.cmdAuth = flag.Bool("a", true, "authenticate agaist device")
+	args.cmdConvertBroadlink = flag.String("convertbroadlink", "", "convert code provided in Broadlink format to Pronto format")
+	args.cmdConvertPronto = flag.String("convertpronto", "", "convert code provided in Pronto format to Broadlink format")
+	args.cmdDiscover = flag.Bool("d", false, "discover - search for devices")
+	args.deviceIP = flag.String("ip", "", "ip of device")
+	args.cmdLearn = flag.Bool("learn", false, "put device in learing mode and wait up to 30 seconds for new learned code")
+	args.cmdGetLearned = flag.Bool("learned", false, "get the last learned code from device in Broadlink format")
+	args.cmdQuiet = flag.Bool("q", false, "quiet - only errors may showen")
+	args.cmdSend = flag.String("send", "", "send code provided in Broadlink format")
+	args.cmdSendPronto = flag.String("sendpronto", "", "send code provided in Pronto format")
+
+	args.cmdSetup = flag.Bool("setup", false, "set device wlan settings - device needs to be in AP-Mode for this")
+	args.setupPassword = flag.String("setuppassword", "", "password of wlan for the device setup")
+	args.setupSecurity = flag.Uint("setupsecurity", 0, "type of wlan security for the device setup [0-none, 1-wep, 2-wpa1, 3-wpa2]")
+	args.setupSSID = flag.String("setupssid", "", "ssid of wlan for the device setup")
+
+	args.cmdVerbose = flag.Bool("v", false, "verbose - show detailed messages")
+	flag.Parse()
+	return
+}
+
+func checkArguments(args cmdArguments) {
+	if (*args.cmdLearn || (len(*args.cmdSend) != 0) || (len(*args.cmdSendPronto) != 0) || *args.cmdGetLearned) && !*args.cmdDiscover {
+		log.Fatalln("invalid options - discovery needed")
+	}
+
+	if *args.cmdSetup {
+		if len(*args.setupSSID) == 0 {
+			log.Fatalln("No SSID provided")
+		}
+
+		if (*args.setupSecurity != 0) && (len(*args.setupPassword) == 0) {
+			log.Fatalln("No WLan Password provided")
+		}
+
+		if *args.setupSecurity > 3 {
+			log.Fatalln("Unsupported WLan security type")
+		}
 	}
 }
 

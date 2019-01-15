@@ -1,3 +1,5 @@
+// Package broadlinkrm is designed to work with Broadlink RM Mini3 or similar devices.
+// It can configure the WLan settings of the device and learn and send IR commands over the device.
 package broadlinkrm
 
 /* Copyright (c) 2019, Holger Wolff - All rights reserved.
@@ -401,7 +403,7 @@ func pronto2lirc(prontoCode []byte) []int {
 }
 
 func lirc2broadlink(lircCode []int) []byte {
-	pulses := make([]byte, 0)
+	var pulses []byte
 
 	for i := 0; i < len(lircCode); i++ {
 		pulse := lircCode[i] * 269 / 8192
@@ -416,7 +418,7 @@ func lirc2broadlink(lircCode []int) []byte {
 		}
 	}
 
-	packet := make([]byte, 0)
+	var packet []byte
 	packet = append(packet, 0x26, 0x00)
 	packetLen := make([]byte, 2)
 	binary.LittleEndian.PutUint16(packetLen, uint16(len(pulses)))
@@ -434,7 +436,7 @@ func broadlink2lirc(broadlinkCode []byte) []int {
 
 	pulseLen := binary.LittleEndian.Uint16(broadlinkCode[2:4])
 	pulses := broadlinkCode[4 : pulseLen+4]
-	lircCode := make([]int, 0)
+	var lircCode []int
 
 	for i := 0; i < len(pulses); i++ {
 		if pulses[i] == 0 {
@@ -454,7 +456,7 @@ func broadlink2lirc(broadlinkCode []byte) []int {
 func lirc2pronto(lircCode []int, ff uint16) []byte {
 	frequency := 1 / (float64(ff) * 0.241246)
 
-	prontoByte := make([]uint16, 0)
+	var prontoByte []uint16
 	prontoByte = append(prontoByte, uint16(0))
 	prontoByte = append(prontoByte, ff)
 	prontoByte = append(prontoByte, uint16(0))
@@ -464,7 +466,7 @@ func lirc2pronto(lircCode []int, ff uint16) []byte {
 	}
 	prontoByte[3] = uint16(len(prontoByte)/2 - 2)
 
-	prontoCode := make([]byte, 0)
+	var prontoCode []byte
 	for i := 0; i < len(prontoByte); i++ {
 		beB := make([]byte, 2)
 		binary.BigEndian.PutUint16(beB, prontoByte[i])
