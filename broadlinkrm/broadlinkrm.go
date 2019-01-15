@@ -66,7 +66,7 @@ func init() {
 //
 // timeout - in seconds, if set to 0 the function returns after the first device that answers
 // deviceIP - IP of an device to use, if nil a broadcast will be send to find all devices
-// The returned channel contains the parsed data of the devices that have answerd.
+// The returned channel contains the parsed data of the devices that have answered.
 func Hello(timeout time.Duration, deviceIP net.IP) (devices chan Device) {
 	payload := make([]byte, 0x30)
 
@@ -266,8 +266,7 @@ func encrypt(key, iv, text []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	b := text
-	b = padding(text, aes.BlockSize)
+	b := padding(text, aes.BlockSize)
 	ciphertext := make([]byte, len(b))
 
 	cipher.NewCBCEncrypter(block, iv).CryptBlocks(ciphertext, b)

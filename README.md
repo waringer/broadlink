@@ -1,4 +1,4 @@
-# Go library for Broadlink RM devices [![pipeline status](https://gitlab.com/waringer/broadlink/badges/master/pipeline.svg)](https://gitlab.com/waringer/broadlink/commits/master)
+# Go library for Broadlink RM devices [![pipeline status](https://gitlab.com/waringer/broadlink/badges/master/pipeline.svg)](https://gitlab.com/waringer/broadlink/commits/master) [![Go Report Card](https://goreportcard.com/badge/gitlab.com/waringer/broadlink)](https://goreportcard.com/report/gitlab.com/waringer/broadlink)
 
 This library where created with work from the following pages:
 
@@ -10,7 +10,7 @@ The library is designed to work with Broadlink RM Mini3 or similar devices. It c
 
 **In the root directory is a sample command line program "main.go" where you can see the usage of the library.**
 
-Link to documentation in [GoDoc](https://godoc.org/gitlab.com/waringer/broadlink/broadlinkrm)
+Link to documentation in [![GoDoc](https://godoc.org/gitlab.com/waringer/broadlink/broadlinkrm?status.svg)](https://godoc.org/gitlab.com/waringer/broadlink/broadlinkrm/android)
 
 ## How to's
 
