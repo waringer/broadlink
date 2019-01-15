@@ -10,7 +10,7 @@ The library is designed to work with Broadlink RM Mini3 or similar devices. It c
 
 **In the root directory is a sample command line program "main.go" where you can see the usage of the library.**
 
-Link to documentation in [![GoDoc](https://godoc.org/gitlab.com/waringer/broadlink/broadlinkrm?status.svg)](https://godoc.org/gitlab.com/waringer/broadlink/broadlinkrm/android)
+Link to documentation in [![GoDoc](https://godoc.org/gitlab.com/waringer/broadlink/broadlinkrm?status.svg)](https://godoc.org/gitlab.com/waringer/broadlink/broadlinkrm)
 
 ## How to's
 

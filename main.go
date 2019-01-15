@@ -46,31 +46,10 @@ func main() {
 		logLevel = 0
 	}
 
-	var (
-		ip        net.IP
-		dev       []broadlinkrm.Device
-		irCommand []byte
-		err       error
-	)
+	var ip net.IP
 
 	if (*cmdLearn || (len(*cmdSend) != 0) || (len(*cmdSendPronto) != 0) || *cmdGetLearned) && !*cmdDiscover {
 		log.Fatalln("invalid options - discovery needed")
-	}
-
-	if len(*cmdSend) != 0 {
-		irCommand, err = hex.DecodeString(strings.Replace(*cmdSend, " ", "", -1))
-
-		if err != nil {
-			log.Fatalln("Provided Broadlink IR code is invalid")
-		}
-	} else if len(*cmdSendPronto) != 0 {
-		irCommand, err = hex.DecodeString(strings.Replace(*cmdSendPronto, " ", "", -1))
-
-		if err != nil {
-			log.Fatalln("Provided Pronto IR code is invalid")
-		}
-
-		irCommand = broadlinkrm.ConvertPronto2Broadlink(irCommand)
 	}
 
 	if *cmdSetup {
@@ -89,8 +68,28 @@ func main() {
 
 	printMessage(1, fmt.Sprintf("Broadlink RM Toolbox\n"))
 
-	if len(*cmdConvertBroadlink) != 0 {
-		broadlinkCode, errBroadlink := hex.DecodeString(strings.Replace(*cmdConvertBroadlink, " ", "", -1))
+	convertBroadlink(*cmdConvertBroadlink)
+	convertPronto(*cmdConvertPronto)
+
+	if *deviceIP != "" {
+		ip = net.ParseIP(*deviceIP)
+	}
+
+	if *cmdDiscover {
+		dev := discover(ip, *cmdAuth)
+		learn(*cmdLearn, *cmdGetLearned, dev)
+		send(buildIRcommand(*cmdSend, *cmdSendPronto), dev)
+	}
+
+	if *cmdSetup {
+		response := broadlinkrm.Join(*setupSSID, *setupPassword, byte(*setupSecurity), ip)
+		printMessage(1, fmt.Sprintf("Device returned: [%x] \n", response))
+	}
+}
+
+func convertBroadlink(cmdConvertBroadlink string) {
+	if len(cmdConvertBroadlink) != 0 {
+		broadlinkCode, errBroadlink := hex.DecodeString(strings.Replace(cmdConvertBroadlink, " ", "", -1))
 
 		if errBroadlink != nil {
 			log.Fatalln("Provided Broadlink IR code is invalid")
@@ -98,9 +97,11 @@ func main() {
 
 		printMessage(0, fmt.Sprintf("Converted IR code in Pronto format: %v \n", regexp.MustCompile("(?m)(.{4})").ReplaceAllString(hex.EncodeToString(broadlinkrm.ConvertBroadlink2Pronto(broadlinkCode, 0x6d)), "$1 ")))
 	}
+}
 
-	if len(*cmdConvertPronto) != 0 {
-		prontoCode, errPronto := hex.DecodeString(strings.Replace(*cmdConvertPronto, " ", "", -1))
+func convertPronto(cmdConvertPronto string) {
+	if len(cmdConvertPronto) != 0 {
+		prontoCode, errPronto := hex.DecodeString(strings.Replace(cmdConvertPronto, " ", "", -1))
 
 		if errPronto != nil {
 			log.Fatalln("Provided Pronto IR code is invalid")
@@ -108,41 +109,40 @@ func main() {
 
 		printMessage(0, fmt.Sprintf("Converted IR code in Broadlink format: %x \n", broadlinkrm.ConvertPronto2Broadlink(prontoCode)))
 	}
+}
 
-	if *deviceIP != "" {
-		ip = net.ParseIP(*deviceIP)
+func discover(ip net.IP, cmdAuth bool) (dev []broadlinkrm.Device) {
+	var devC chan (broadlinkrm.Device)
+
+	if ip == nil {
+		devC = broadlinkrm.Hello(5, nil)
+	} else {
+		devC = broadlinkrm.Hello(0, ip)
 	}
 
-	if *cmdDiscover {
-		var devC chan (broadlinkrm.Device)
+	id := 0
+	for device := range devC {
+		id++
 
-		if ip == nil {
-			devC = broadlinkrm.Hello(5, nil)
-		} else {
-			devC = broadlinkrm.Hello(0, ip)
+		printMessage(2, fmt.Sprintf("[%02v] Device type: %X \n", id, device.DeviceType))
+		printMessage(2, fmt.Sprintf("[%02v] Device name: %v \n", id, device.DeviceName))
+		printMessage(2, fmt.Sprintf("[%02v] Device MAC: [% x] \n", id, device.DeviceMac()))
+		printMessage(1, fmt.Sprintf("[%02v] Device IP: %v \n", id, device.DeviceAddr.IP))
+
+		if cmdAuth {
+			broadlinkrm.Auth(&device)
+			printMessage(2, fmt.Sprintf("[%02v] Device authenticated \n", id))
 		}
 
-		id := 0
-		for device := range devC {
-			id++
-
-			printMessage(2, fmt.Sprintf("[%02v] Device type: %X \n", id, device.DeviceType))
-			printMessage(2, fmt.Sprintf("[%02v] Device name: %v \n", id, device.DeviceName))
-			printMessage(2, fmt.Sprintf("[%02v] Device MAC: [% x] \n", id, device.DeviceMac()))
-			printMessage(1, fmt.Sprintf("[%02v] Device IP: %v \n", id, device.DeviceAddr.IP))
-
-			if *cmdAuth {
-				broadlinkrm.Auth(&device)
-				printMessage(2, fmt.Sprintf("[%02v] Device authenticated \n", id))
-			}
-
-			dev = append(dev, device)
-		}
-
-		printMessage(1, fmt.Sprintf("Found %v device(s)\n", len(dev)))
+		dev = append(dev, device)
 	}
 
-	if *cmdLearn {
+	printMessage(1, fmt.Sprintf("Found %v device(s)\n", len(dev)))
+	return
+}
+
+func learn(cmdLearn bool, cmdGetLearned bool, dev []broadlinkrm.Device) {
+	if cmdLearn {
 		for id, device := range dev {
 			broadlinkrm.Command(3, nil, &device)
 			printMessage(0, fmt.Sprintf("[%02v] Wait for learned code", id))
@@ -164,13 +164,36 @@ func main() {
 				printMessage(0, fmt.Sprintf("\n[%02v] No code learned! \n", id))
 			}
 		}
-	} else if *cmdGetLearned {
+	} else if cmdGetLearned {
 		for id, device := range dev {
 			learnedCode := broadlinkrm.Command(4, nil, &device)
 			printMessage(0, fmt.Sprintf("[%02v] Device last learned code: [%x] \n", id, learnedCode))
 		}
 	}
+}
 
+func buildIRcommand(cmdSend string, cmdSendPronto string) (irCommand []byte) {
+	var err error
+	if len(cmdSend) != 0 {
+		irCommand, err = hex.DecodeString(strings.Replace(cmdSend, " ", "", -1))
+
+		if err != nil {
+			log.Fatalln("Provided Broadlink IR code is invalid")
+		}
+	} else if len(cmdSendPronto) != 0 {
+		irCommand, err = hex.DecodeString(strings.Replace(cmdSendPronto, " ", "", -1))
+
+		if err != nil {
+			log.Fatalln("Provided Pronto IR code is invalid")
+		}
+
+		irCommand = broadlinkrm.ConvertPronto2Broadlink(irCommand)
+	}
+
+	return
+}
+
+func send(irCommand []byte, dev []broadlinkrm.Device) {
 	if irCommand != nil {
 		for id, device := range dev {
 			response := broadlinkrm.Command(2, irCommand, &device)
@@ -181,11 +204,6 @@ func main() {
 				printMessage(1, fmt.Sprintf("[%02v] code send \n", id))
 			}
 		}
-	}
-
-	if *cmdSetup {
-		response := broadlinkrm.Join(*setupSSID, *setupPassword, byte(*setupSecurity), ip)
-		printMessage(1, fmt.Sprintf("Device returned: [%x] \n", response))
 	}
 }
 
