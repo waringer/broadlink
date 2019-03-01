@@ -293,7 +293,7 @@ func decrypt(key []byte, iv []byte, encText []byte) ([]byte, error) {
 }
 
 func padding(ciphertext []byte, blockSize int) []byte {
-	return append(ciphertext, bytes.Repeat([]byte{byte((blockSize - len(ciphertext)%blockSize))}, 0x00)...)
+	return append(ciphertext, bytes.Repeat([]byte{0x00}, blockSize-len(ciphertext)%blockSize)...)
 }
 
 func unPadding(src []byte) []byte {
