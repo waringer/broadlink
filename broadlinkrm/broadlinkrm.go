@@ -151,16 +151,24 @@ func Command(cmd uint32, data []byte, dev *Device) []byte {
 
 	binary.LittleEndian.PutUint32(payload[0x00:], cmd)
 
+	if dev.DeviceType == 0x5f36 {
+		payload = append([]byte{0x04, 0x00}, payload...)
+	}
+
 	send(0x6a, dev, payload)
 
 	response := wait4Response(0x3ee, DefaultTimeout)
-	if int16(binary.LittleEndian.Uint16(response[0x22:])) == 0 {
-		decrypted, _ := decrypt(dev.deviceKey, deviceIv, response[0x38:])
-		return decrypted[4:]
-	}
+	if len(response) >= 0x22 {
+		if int16(binary.LittleEndian.Uint16(response[0x22:])) == 0 {
+			decrypted, _ := decrypt(dev.deviceKey, deviceIv, response[0x38:])
+			return decrypted[4:]
+		}
 
-	if LogWarnings {
-		log.Println("error packet received")
+		if LogWarnings {
+			log.Println("error packet received")
+		}
+	} else {
+		log.Printf("packet received is to small (%d) %v\n", len(response), response)
 	}
 
 	return nil
