@@ -33,3 +33,4 @@ packages/
 /debug
 .vscode/
 *.sh
+*.code-workspace

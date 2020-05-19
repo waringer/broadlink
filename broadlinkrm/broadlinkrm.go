@@ -307,7 +307,13 @@ func padding(ciphertext []byte, blockSize int) []byte {
 func unPadding(src []byte) []byte {
 	length := len(src)
 	unpadding := int(src[length-1])
-	return src[:(length - unpadding)]
+
+	newLength := length - unpadding
+	if newLength < 0 {
+		return src
+	}
+
+	return src[:newLength]
 }
 
 func udpListener() {
