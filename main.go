@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/waringer/broadlink/broadlinkrm"
+	"github.com/waringer/broadlink/broadlinkrm"
 )
 
 type cmdArguments struct {
